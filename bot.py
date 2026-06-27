@@ -3,12 +3,12 @@ import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import telebot
-import requests
 from requests_cache import CachedSession
 
 # --- KONFIGURASI ---
-TOKEN = 'TOKEN_ANDA_DISINI'
-CHAT_ID = 'ID_CHAT_ANDA_DISINI'
+# Token diambil dari pengaturan 'Variables' di Railway
+TOKEN = os.getenv('TOKEN')
+CHAT_ID = os.getenv('CHAT_ID')
 SYMBOLS = ['EURUSD=X', 'GBPUSD=X', 'AUDUSD=X', 'USDJPY=X']
 
 bot = telebot.TeleBot(TOKEN)
@@ -34,4 +34,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
