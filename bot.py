@@ -10,12 +10,20 @@ CHAT_ID = os.getenv('CHAT_ID')
 
 bot = telebot.TeleBot(TOKEN)
 
-# Variabel status untuk mencegah spam pesan aktif
-is_initialized = False
+# KITA GUNAKAN FILE SEBAGAI "MEMORI" AGAR PESAN HANYA DIKIRIM SEKALI
+MEM_FILE = "bot_init.txt"
+
+def send_once(message):
+    if not os.path.exists(MEM_FILE):
+        try:
+            bot.send_message(CHAT_ID, message)
+            with open(MEM_FILE, "w") as f:
+                f.write("sent")
+        except:
+            pass
 
 def get_data(symbol):
     try:
-        # Mengambil data 5 hari terakhir
         df = yf.download(symbol, period='5d', interval='1h', progress=False)
         if df.empty or len(df) < 20:
             return None
@@ -29,17 +37,12 @@ def check_divergence(df):
     prev_rsi = df['RSI'].iloc[-5:-1].max()
     
     if current_rsi < prev_rsi and current_rsi > 60:
-        return f"📊 Peringatan: Potensi Bearish Divergence (Pucuk Terdeteksi!) \nRSI: {current_rsi:.2f}"
+        return f"📊 Peringatan Bearish Divergence! RSI: {current_rsi:.2f}"
     return None
 
 def main():
-    global is_initialized
-    if not is_initialized:
-        try:
-            bot.send_message(CHAT_ID, "🤖 Bot Trading Aktif dan Memantau Pasar...")
-            is_initialized = True
-        except:
-            pass
+    # Pesan ini hanya akan terkirim SEKALI SEUMUR HIDUP bot
+    send_once("🤖 Bot Trading Aktif dan Memantau Pasar...")
     
     while True:
         symbols = ['EURUSD=X', 'GBPUSD=X', 'AUDUSD=X', 'USDJPY=X']
@@ -48,10 +51,11 @@ def main():
             if df is not None:
                 alert = check_divergence(df)
                 if alert:
-                    bot.send_message(CHAT_ID, f"Pair: {symbol}\n{alert}")
-        
-        # Jeda 1 jam sebelum scan ulang
-        time.sleep(3600)
+                    try:
+                        bot.send_message(CHAT_ID, f"Pair: {symbol}\n{alert}")
+                    except:
+                        pass
+        time.sleep(3600) # Jeda 1 jam
 
 if __name__ == '__main__':
     main()
