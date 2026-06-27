@@ -4,7 +4,7 @@ import pandas_ta as ta
 import telebot
 import time
 
-# Konfigurasi dari Railway Variables
+# Konfigurasi
 TOKEN = os.getenv('TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 
@@ -12,16 +12,13 @@ bot = telebot.TeleBot(TOKEN)
 
 def scan_market(symbol):
     try:
-        # Mengambil data harga
         df = yf.download(symbol, period='5d', interval='1h', progress=False)
         if df.empty or len(df) < 14:
-            return None
+            return None, None
         
-        # Hitung RSI
         df['RSI'] = ta.rsi(df['Close'], length=14)
         last_rsi = df['RSI'].iloc[-1]
         
-        # Logika Sinyal sederhana
         action = None
         if last_rsi < 30:
             action = "BUY (Oversold)"
@@ -33,18 +30,18 @@ def scan_market(symbol):
         return None, None
 
 def main():
-    bot.send_message(CHAT_ID, "🚀 Bot Radar Sinyal Sempurna Aktif!")
+    # Pesan inisialisasi hanya dikirim sekali saat bot pertama kali menyala
+    bot.send_message(CHAT_ID, "✅ Bot Radar Sinyal Aktif dan Siap Memantau Pasar!")
     
     while True:
-        symbols = ['EURUSD=X', 'GBPUSD=X']
+        symbols = ['EURUSD=X', 'GBPUSD=X', 'AUDUSD=X', 'USDJPY=X']
         for symbol in symbols:
             rsi, action = scan_market(symbol)
-            
             if action:
-                msg = f"📊 {symbol}\nRSI: {rsi:.2f}\nSinyal: {action}"
+                msg = f"📊 Sinyal {symbol}\nRSI: {rsi:.2f}\nSinyal: {action}"
                 bot.send_message(CHAT_ID, msg)
         
-        # Tunggu 1 jam agar tidak spam
+        # Jeda 1 jam (3600 detik) untuk pemantauan berikutnya
         time.sleep(3600)
 
 if __name__ == '__main__':
