@@ -2,33 +2,41 @@ import os
 import yfinance as yf
 import telebot
 import time
+import pandas as pd
 
-# Konfigurasi
 TOKEN = os.getenv('TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 bot = telebot.TeleBot(TOKEN)
+
 INSTRUMENTS = ['XAUUSD=X', 'EURUSD=X', 'GBPUSD=X', 'USDJPY=X']
 
 def get_market_data(symbol):
     try:
-        # Mengambil data harga OHLC
+        # Mengambil data 5 hari terakhir
         df = yf.download(symbol, period='5d', interval='1h', progress=False)
+        # VERIFIKASI DATA: Pastikan dataframe tidak kosong dan punya cukup baris
+        if df is None or df.empty or len(df) < 5:
+            return None
         return df
-    except: return None
+    except Exception:
+        return None
 
 def check_price_action(df):
-    # Logika mendeteksi pergerakan impulsif (Gap besar)
-    # Jika harga penutupan candle terakhir > High candle sebelumnya + threshold
-    current_close = df['Close'].iloc[-1]
-    prev_high = df['High'].iloc[-2]
-    prev_low = df['Low'].iloc[-2]
-    
-    # Deteksi Breakout Impulsif (Potensi BoS)
-    if current_close > prev_high:
-        return f"⚡ STRUCTURE BREAK (BULLISH): Harga menembus {current_close:.2f}"
-    elif current_close < prev_low:
-        return f"⚡ STRUCTURE BREAK (BEARISH): Harga menembus {current_close:.2f}"
-    
+    try:
+        # Pastikan kita mengakses index yang valid
+        if len(df) < 2:
+            return None
+            
+        current_close = float(df['Close'].iloc[-1])
+        prev_high = float(df['High'].iloc[-2])
+        prev_low = float(df['Low'].iloc[-2])
+        
+        if current_close > prev_high:
+            return f"⚡ STRUCTURE BREAK (BULLISH): {current_close:.2f}"
+        elif current_close < prev_low:
+            return f"⚡ STRUCTURE BREAK (BEARISH): {current_close:.2f}"
+    except Exception:
+        return None
     return None
 
 def main():
@@ -41,7 +49,8 @@ def main():
                     try:
                         bot.send_message(CHAT_ID, f"🎯 Radar {symbol}\n{alert}")
                     except: pass
-        time.sleep(1800) # Scan tiap 30 menit
+        # Jeda lebih lama agar tidak membebani server
+        time.sleep(3600) 
 
 if __name__ == '__main__':
     main()
