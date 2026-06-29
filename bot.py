@@ -3,41 +3,41 @@ import yfinance as yf
 import telebot
 import time
 
+# Konfigurasi dari Environment Variables Railway
 TOKEN = os.getenv('TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
+
 bot = telebot.TeleBot(TOKEN)
 
-INSTRUMENTS = ['EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X', 'GC=F']
+# Menambahkan BTC-USD ke dalam daftar pantauan
+INSTRUMENTS = ['EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X', 'GC=F', 'BTC-USD']
 
 def get_market_data(symbol):
     try:
-        df = yf.download(symbol, period='5d', interval='1h', progress=False, timeout=10)
-        if df is None or df.empty or len(df) < 15: return None
-        # Tambahkan RSI untuk deteksi Sideways
-        delta = df['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        df['RSI'] = 100 - (100 / (1 + rs))
+        # Mengambil data 5 hari terakhir
+        df = yf.download(symbol, period='5d', interval='1h', progress=False, timeout=15)
+        if df is None or df.empty or len(df) < 5:
+            return None
         return df
-    except: return None
+    except Exception:
+        return None
 
-def check_hybrid_signal(df):
+def check_price_action(df):
     try:
-        # A. LOGIKA TREN (Price Action)
-        close = float(df['Close'].iloc[-1])
-        prev_h = float(df['High'].iloc[-2])
-        prev_l = float(df['Low'].iloc[-2])
+        if len(df) < 2: return None
+            
+        current_close = float(df['Close'].iloc[-1])
+        prev_high = float(df['High'].iloc[-2])
+        prev_low = float(df['Low'].iloc[-2])
         
-        if close > prev_h: return f"⚡ TREN: Bullish Breakout {close:.2f}"
-        if close < prev_l: return f"⚡ TREN: Bearish Breakout {close:.2f}"
-        
-        # B. LOGIKA SIDEWAYS (Mean Reversion)
-        rsi = float(df['RSI'].iloc[-1])
-        if rsi > 75: return f"↔️ SIDEWAYS: Overbought (Potensi SELL) RSI:{rsi:.1f}"
-        if rsi < 25: return f"↔️ SIDEWAYS: Oversold (Potensi BUY) RSI:{rsi:.1f}"
-        
-    except: return None
+        # Logika Deteksi Breakout (Structure Break)
+        if current_close > prev_high:
+            return f"⚡ STRUCTURE BREAK (BULLISH): {current_close:.2f}"
+        elif current_close < prev_low:
+            return f"⚡ STRUCTURE BREAK (BEARISH): {current_close:.2f}"
+            
+    except Exception:
+        return None
     return None
 
 def main():
@@ -45,12 +45,13 @@ def main():
         for symbol in INSTRUMENTS:
             df = get_market_data(symbol)
             if df is not None:
-                alert = check_hybrid_signal(df)
+                alert = check_price_action(df)
                 if alert:
                     try:
                         bot.send_message(CHAT_ID, f"🎯 Radar {symbol}\n{alert}")
                     except: pass
-        time.sleep(3600)
+        # Jeda 1 jam
+        time.sleep(3600) 
 
 if __name__ == '__main__':
     main()
