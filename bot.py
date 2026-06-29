@@ -2,19 +2,20 @@ import os
 import yfinance as yf
 import telebot
 import time
-import pandas as pd
 
+# Konfigurasi dari Environment Variables Railway
 TOKEN = os.getenv('TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
+
 bot = telebot.TeleBot(TOKEN)
 
-INSTRUMENTS = ['XAUUSD=X', 'EURUSD=X', 'GBPUSD=X', 'USDJPY=X']
+# Instrumen yang dipantau (GC=F adalah Gold Futures untuk menggantikan XAUUSD)
+INSTRUMENTS = ['EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X', 'GC=F']
 
 def get_market_data(symbol):
     try:
-        # Mengambil data 5 hari terakhir
-        df = yf.download(symbol, period='5d', interval='1h', progress=False)
-        # VERIFIKASI DATA: Pastikan dataframe tidak kosong dan punya cukup baris
+        # Mengambil data 5 hari terakhir dengan timeout agar stabil
+        df = yf.download(symbol, period='5d', interval='1h', progress=False, timeout=10)
         if df is None or df.empty or len(df) < 5:
             return None
         return df
@@ -23,7 +24,7 @@ def get_market_data(symbol):
 
 def check_price_action(df):
     try:
-        # Pastikan kita mengakses index yang valid
+        # Pastikan data tersedia untuk dianalisis
         if len(df) < 2:
             return None
             
@@ -31,15 +32,18 @@ def check_price_action(df):
         prev_high = float(df['High'].iloc[-2])
         prev_low = float(df['Low'].iloc[-2])
         
+        # Deteksi Break of Structure (BoS)
         if current_close > prev_high:
             return f"⚡ STRUCTURE BREAK (BULLISH): {current_close:.2f}"
         elif current_close < prev_low:
             return f"⚡ STRUCTURE BREAK (BEARISH): {current_close:.2f}"
+            
     except Exception:
         return None
     return None
 
 def main():
+    # Loop utama bot yang berjalan terus menerus
     while True:
         for symbol in INSTRUMENTS:
             df = get_market_data(symbol)
@@ -48,9 +52,12 @@ def main():
                 if alert:
                     try:
                         bot.send_message(CHAT_ID, f"🎯 Radar {symbol}\n{alert}")
-                    except: pass
-        # Jeda lebih lama agar tidak membebani server
+                    except: 
+                        pass
+        
+        # Jeda 1 jam sebelum scan ulang agar server Railway tetap tenang
         time.sleep(3600) 
 
 if __name__ == '__main__':
+    # Menjalankan fungsi utama
     main()
