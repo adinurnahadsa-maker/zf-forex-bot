@@ -1,7 +1,3 @@
-pyTelegramBotAPI
 yfinance
+pyTelegramBotAPI
 pandas
-pandas-ta
-requests
-requests-cache
-
